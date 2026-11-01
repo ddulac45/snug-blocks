@@ -1,0 +1,1028 @@
+<title>Snug Blocks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;700&display=swap">
+<style>
+  /* Layout: a felt "quilt" board on the left, the piece bank on the right; stacks on phones. */
+  :root {
+    --bg: #e7f1ec;
+    --surface: #ffffff;
+    --well: #d3e3dc;
+    --stitch: #9db9ad;
+    --ink: #1d2b27;
+    --muted: #55695f;
+    --accent: #e8590c;
+    --bad: #d6336c;
+    --font-display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+    --font-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+    /* The board grows to fill about half the screen width and the screen height. */
+    --cell: min(110px, calc((58vw - 40px) / var(--cols, 8)), calc((100vh - 230px) / var(--rows, 8)));
+    --mini: clamp(16px, 1.7vw, 32px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #142320; --surface: #1d302b; --well: #26403a; --stitch: #4f7166;
+      --ink: #e4f1eb; --muted: #9fb8ad; --accent: #ff8a3d; --bad: #ff6b9a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #142320; --surface: #1d302b; --well: #26403a; --stitch: #4f7166;
+    --ink: #e4f1eb; --muted: #9fb8ad; --accent: #ff8a3d; --bad: #ff6b9a;
+    color-scheme: dark;
+  }
+
+  [hidden] { display: none !important; }
+  html { font-size: clamp(16px, 0.6vw + 10px, 24px); }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 1rem; }
+  button { font: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .app {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 16px 32px;
+    display: grid; gap: 16px;
+  }
+  .top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+  .top h1 { font-family: var(--font-display); font-weight: 800; font-size: 2.4rem; margin: 0; line-height: 1; color: var(--accent); }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; font-variant-numeric: tabular-nums; }
+  .chip { background: var(--surface); border-radius: 999px; padding: 4px 12px; color: var(--muted); }
+  .chip b { color: var(--ink); }
+
+  .btn { border: 2px solid var(--ink); background: var(--surface); color: var(--ink); border-radius: 12px; padding: 8px 14px; font-weight: 700; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn:active { transform: translateY(1px); }
+
+  .play { display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 800px) {
+    :root { --cell: min(64px, calc((100vw - 64px) / var(--cols, 8))); }
+    .play { grid-template-columns: 1fr; }
+  }
+  .board-wrap { display: grid; gap: 12px; justify-items: start; }
+  .board {
+    display: grid; grid-template-columns: repeat(var(--cols), var(--cell));
+    gap: 0; padding: 10px; background: var(--well); border-radius: 14px;
+    outline: 2px dashed var(--stitch); outline-offset: -5px; touch-action: none; user-select: none;
+  }
+  /* Each cell draws its square in ::before, inset from the edges. Sides that touch
+     the same piece (classes jt/jr/jb/jl) go to the edge, so a piece looks joined. */
+  .cell { width: var(--cell); height: var(--cell); position: relative; }
+  .cell::before {
+    content: ""; position: absolute; inset: 2px; box-sizing: border-box;
+    border-radius: 6px; border: 2px dashed var(--stitch);
+  }
+  .cell.outside { visibility: hidden; }
+  .cell.filled { cursor: pointer; }
+  .cell.filled::before { border: none; background: var(--color); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12); }
+  .cell.jt::before { top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+  .cell.jb::before { bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .cell.jl::before { left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .cell.jr::before { right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .cell.ghost::before { border: none; background: var(--ghost); opacity: 0.55; }
+  .cell.ghost-bad::before { border: 3px solid var(--bad); }
+  .board.shake { animation: shake 0.25s; }
+  @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+  .hint { margin: 0; color: var(--muted); max-width: 40ch; }
+
+  .bank-wrap { flex: 1; min-width: 0; display: grid; gap: 8px; }
+  .bank-wrap h2 { font-family: var(--font-display); font-weight: 600; margin: 0; font-size: 1.5rem; }
+  .bank { display: flex; flex-wrap: wrap; gap: 14px; align-content: flex-start; }
+  .piece {
+    display: grid; gap: 0; place-content: center; padding: 12px; background: var(--surface);
+    border: 3px solid transparent; border-radius: 12px; touch-action: none; user-select: none;
+  }
+  .piece.selected { border-color: var(--accent); transform: scale(1.08); }
+  .mini { width: var(--mini); height: var(--mini); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15); }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgb(10 20 18 / 0.55);
+    display: grid; place-items: center; overflow-y: auto;
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+  .panel { background: var(--surface); border-radius: 18px; padding: 24px; width: min(680px, 100%); box-sizing: border-box; display: grid; gap: 14px; }
+  .panel h2 { font-family: var(--font-display); font-weight: 800; font-size: 2rem; margin: 0; line-height: 1.1; text-wrap: balance; }
+  .panel p { margin: 0; }
+  .panel ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+  .pick-round { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .pick-round label { font-weight: 700; }
+  .pick-round select { flex: 1; min-width: 0; font: inherit; font-weight: 700; padding: 8px 12px; border-radius: 12px; border: 2px solid var(--ink); background: var(--surface); color: var(--ink); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .big-score { font-family: var(--font-display); font-size: 3rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  .muted { color: var(--muted); }
+  .save { display: flex; gap: 8px; flex-wrap: wrap; }
+  .save input { flex: 1; min-width: 0; font: inherit; padding: 8px 12px; border-radius: 12px; border: 2px solid var(--stitch); background: var(--bg); color: var(--ink); }
+
+  .scores h3 { font-family: var(--font-display); font-weight: 600; margin: 8px 0 4px; font-size: 1.1rem; }
+  .scores table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .scores th, .scores td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--well); }
+  .scores th { color: var(--muted); font-weight: 700; font-size: 0.85rem; }
+  .scores tr.me td { color: var(--accent); font-weight: 700; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .board.shake { animation: none; }
+    .piece.selected { transform: none; }
+  }
+</style>
+
+<div class="app">
+  <header class="top">
+    <h1>Snug Blocks</h1>
+    <div class="stats">
+      <span class="chip"><b id="roundLabel">Round 1</b></span>
+      <span class="chip">Time <b id="timeLabel">0:00</b></span>
+      <span class="chip">Empty <b id="emptyLabel">0</b></span>
+    </div>
+    <button class="btn" id="muteBtn" type="button">Music: on</button>
+  </header>
+
+  <main class="play">
+    <section class="board-wrap">
+      <div id="board" class="board"></div>
+      <div class="controls">
+        <button class="btn" id="rotateBtn" type="button">Turn piece (R)</button>
+        <button class="btn" id="doneBtn" type="button">I'm done</button>
+        <button class="btn" id="menuBtn" type="button">Menu</button>
+      </div>
+      <p class="hint">Drag a piece onto the board, or tap it and then tap the board. Tap a piece again (or press R) to turn it. Drag a placed piece to move it, or drag it off the board to put it back.</p>
+    </section>
+    <section class="bank-wrap">
+      <h2>Pieces left: <span id="leftLabel">0</span></h2>
+      <div id="bank" class="bank"></div>
+    </section>
+  </main>
+</div>
+
+<div id="overlay" class="overlay">
+  <div class="panel" id="menuPanel">
+    <h2>Snug Blocks</h2>
+    <p>Fit every piece into the grid so no square is left empty. Every puzzle has a perfect answer.</p>
+    <ul>
+      <li>Pieces can be turned, but not flipped.</li>
+      <li>Every square you fill earns points. Filling the whole board earns a bonus, plus extra points for finishing fast.</li>
+      <li>Each round has its own music.</li>
+    </ul>
+    <div class="pick-round">
+      <label for="roundSelect">Round</label>
+      <select id="roundSelect"></select>
+      <button class="btn primary" id="playBtn" type="button">Play</button>
+    </div>
+    <div class="scores" id="menuScores"></div>
+  </div>
+
+  <div class="panel" id="resultPanel" hidden>
+    <h2 id="resultTitle">You filled it!</h2>
+    <div class="big-score" id="resultScore">0</div>
+    <p class="muted" id="resultDetail"></p>
+    <form class="save" id="saveForm">
+      <input id="nameInput" type="text" maxlength="16" placeholder="Your name" required autocomplete="off">
+      <button class="btn primary" type="submit">Save score</button>
+    </form>
+    <div class="scores" id="resultScores"></div>
+    <div class="row">
+      <button class="btn primary" id="nextBtn" type="button">Next round</button>
+      <button class="btn" id="againBtn" type="button">Play again</button>
+      <button class="btn" id="resultMenuBtn" type="button">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Settings ----------
+// Each round's board is drawn as text: '#' is a square to fill, '.' is outside the board.
+function squareShape(size) { return Array(size).fill('#'.repeat(size)); }
+
+function makeRound(name, shape, maxPieces) {
+  if (shape.some((row) => row.length !== shape[0].length)) throw new Error(`${name}: rows must be the same length`);
+  const cellCount = shape.join('').split('#').length - 1;
+  return { name, shape, rows: shape.length, cols: shape[0].length, cellCount, minSize: 3, maxSize: 5, maxPieces };
+}
+
+const ROUNDS = [
+  makeRound('Round 1', squareShape(8), 19),
+  makeRound('Round 2', squareShape(9), 25),
+  makeRound('Round 3', squareShape(10), 30),
+  makeRound('Round 4', [ // a square with a tab on top
+    '...###...',
+    '...###...',
+    ...squareShape(9),
+  ], 26),
+  makeRound('Round 5', [ // tabs on three sides and a bite out of one corner
+    '...#######.',
+    '...#######.',
+    '.##########',
+    '.##########',
+    '###########',
+    '##########.',
+    '##########.',
+    '.#########.',
+    '.#########.',
+    '...###.....',
+  ], 28),
+  makeRound('Round 6', [ // a heart
+    '.####...####.',
+    '######.######',
+    '#############',
+    '#############',
+    '#############',
+    '.###########.',
+    '..#########..',
+    '...#######...',
+    '....#####....',
+    '.....###.....',
+  ], 30),
+  makeRound('Round 7', [ // a plus sign
+    '....####....',
+    '....####....',
+    '....####....',
+    '....####....',
+    '############',
+    '############',
+    '############',
+    '############',
+    '....####....',
+    '....####....',
+    '....####....',
+    '....####....',
+  ], 24),
+  makeRound('Round 8', [ // a diamond
+    '.....###.....',
+    '....#####....',
+    '...#######...',
+    '..#########..',
+    '.###########.',
+    '#############',
+    '.###########.',
+    '..#########..',
+    '...#######...',
+    '....#####....',
+    '.....###.....',
+  ], 25),
+  makeRound('Round 9', [ // a house with a door
+    '.....##.....',
+    '....####....',
+    '...######...',
+    '..########..',
+    '.##########.',
+    '############',
+    '..########..',
+    '..########..',
+    '..########..',
+    '..########..',
+    '..###..###..',
+    '..###..###..',
+  ], 26),
+  makeRound('Round 10', [ // a square with a hole in the middle
+    '##########',
+    '##########',
+    '##########',
+    '##########',
+    '####..####',
+    '####..####',
+    '##########',
+    '##########',
+    '##########',
+    '##########',
+  ], 29),
+  makeRound('Round 11', [ // a castle with towers and a gate
+    '###..###..###',
+    '###..###..###',
+    '#############',
+    '#############',
+    '#############',
+    '#############',
+    '#############',
+    '#############',
+    '#####...#####',
+    '#####...#####',
+  ], 34),
+  makeRound('Round 12', [ // a cat face with ears and eyes
+    '##.........##',
+    '###.......###',
+    '####.....####',
+    '#############',
+    '#############',
+    '##..#####..##',
+    '##..#####..##',
+    '#############',
+    '#############',
+    '.###########.',
+    '..#########..',
+    '...#######...',
+  ], 34),
+];
+const OUTSIDE = 'outside'; // board value for a spot that isn't part of the board
+const POINTS_PER_FILLED_SQUARE = 10;
+const FULL_BOARD_BONUS = 500;
+const TIME_BONUS_START = 300; // only for a full board; drops 1 point per second, down to 0
+const SCORES_URL = 'https://snug-blocks-scores.dustin-dulac.workers.dev/scores'; // shared leaderboard for every device
+
+const $ = (id) => document.getElementById(id);
+let game = null;
+
+// ---------- Small helpers ----------
+function randInt(min, max) { return min + Math.floor(Math.random() * (max - min + 1)); }
+function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
+function shuffle(list) {
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+function pieceColor(i) { return `hsl(${Math.round(i * 137.508) % 360} 70% 58%)`; }
+function formatTime(seconds) { return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; }
+
+// ---------- Shapes ----------
+// A shape is a list of [row, col] cells. Normalized shapes start at row 0 / col 0
+// and are sorted top-to-bottom, left-to-right, so shape[0] is the "handle" cell.
+function normalize(cells) {
+  const minR = Math.min(...cells.map(([r]) => r));
+  const minC = Math.min(...cells.map(([, c]) => c));
+  return cells.map(([r, c]) => [r - minR, c - minC]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+}
+// Turn a shape a quarter turn clockwise. No flipping, ever.
+function rotate(cells) { return normalize(cells.map(([r, c]) => [c, -r])); }
+
+// ---------- Puzzle generator ----------
+// We cut the full grid into pieces, so the pieces always fill it perfectly.
+function generatePuzzle(round) {
+  for (let attempt = 0; attempt < 5000; attempt++) {
+    const pieces = tryCutGrid(round);
+    if (pieces) return pieces;
+  }
+  throw new Error(`Could not build a puzzle for ${round.name}`);
+}
+
+function tryCutGrid({ shape, rows, cols, minSize, maxSize, maxPieces }) {
+  const taken = shape.map((row) => [...row].map((ch) => ch === '.'));
+  const pieces = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (taken[r][c]) continue;
+      const target = randInt(minSize, maxSize);
+      const cells = [[r, c]];
+      taken[r][c] = true;
+      while (cells.length < target) {
+        const options = emptyNeighbors(cells, taken);
+        if (options.length === 0) break;
+        const [nr, nc] = pick(options);
+        taken[nr][nc] = true;
+        cells.push([nr, nc]);
+      }
+      if (cells.length < minSize) return null;
+      pieces.push(cells);
+      if (pieces.length > maxPieces) return null;
+    }
+  }
+  return pieces;
+}
+
+function emptyNeighbors(cells, taken) {
+  const result = [];
+  for (const [r, c] of cells) {
+    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nr = r + dr, nc = c + dc;
+      if (taken[nr] !== undefined && taken[nr][nc] === false) result.push([nr, nc]);
+    }
+  }
+  return result;
+}
+
+// ---------- Game state ----------
+function startRound(index) {
+  setupRound(index);
+  $('overlay').hidden = true;
+  startMusic(index);
+}
+
+function setupRound(index) {
+  const round = ROUNDS[index];
+  const shapes = shuffle(generatePuzzle(round));
+  if (game) clearInterval(game.timer);
+  game = {
+    roundIndex: index,
+    round,
+    board: round.shape.map((row) => [...row].map((ch) => (ch === '#' ? null : OUTSIDE))),
+    pieces: shapes.map((cells, i) => {
+      let shape = normalize(cells);
+      for (let k = randInt(0, 3); k > 0; k--) shape = rotate(shape);
+      return { id: i, color: pieceColor(i), shape, origin: null };
+    }),
+    selectedId: null,
+    grab: null,
+    hover: null,
+    startTime: performance.now(),
+    finished: false,
+    timer: setInterval(renderStats, 250),
+  };
+  buildBoard();
+  renderAll();
+}
+
+function selectedPiece() { return game.selectedId === null ? null : game.pieces[game.selectedId]; }
+function elapsedSeconds() { return Math.floor((performance.now() - game.startTime) / 1000); }
+function emptyCount() { return game.board.flat().filter((id) => id === null).length; }
+// Every filled square earns points, so a good try never scores 0.
+function scoreParts(roundIndex, empty, seconds) {
+  return {
+    squares: (ROUNDS[roundIndex].cellCount - empty) * POINTS_PER_FILLED_SQUARE,
+    fullBonus: empty === 0 ? FULL_BOARD_BONUS : 0,
+    timeBonus: empty === 0 ? Math.max(0, TIME_BONUS_START - seconds) : 0,
+  };
+}
+function calcScore(roundIndex, empty, seconds) {
+  const { squares, fullBonus, timeBonus } = scoreParts(roundIndex, empty, seconds);
+  return squares + fullBonus + timeBonus;
+}
+
+// The hovered cell is where the piece's handle cell (shape[0]) goes.
+// game.grab is the square of the held piece that sits under the pointer.
+function originFor(piece, r, c) { return [r - game.grab[0], c - game.grab[1]]; }
+function cellsAt(piece, [or, oc]) { return piece.shape.map(([r, c]) => [r + or, c + oc]); }
+function inBounds(r, c) { return r >= 0 && r < game.round.rows && c >= 0 && c < game.round.cols; }
+function canPlace(piece, origin) {
+  return cellsAt(piece, origin).every(([r, c]) => inBounds(r, c) && game.board[r][c] === null);
+}
+
+// Pick up a piece from the bank. Only pieces in the bank can be held.
+function selectPiece(piece, grab) {
+  game.selectedId = piece.id;
+  game.grab = grab;
+}
+
+function placePiece(piece, origin) {
+  for (const [r, c] of cellsAt(piece, origin)) game.board[r][c] = piece.id;
+  piece.origin = origin;
+  game.selectedId = null;
+}
+
+// Take a placed piece off the board and hold it by the square that was touched.
+function liftPiece(piece, r, c) {
+  const [or, oc] = piece.origin;
+  for (const [pr, pc] of cellsAt(piece, piece.origin)) game.board[pr][pc] = null;
+  piece.origin = null;
+  selectPiece(piece, [r - or, c - oc]);
+}
+
+function rotateSelected() {
+  const piece = selectedPiece();
+  if (!piece) return;
+  piece.shape = rotate(piece.shape);
+  game.grab = piece.shape[0];
+  renderAll();
+}
+
+// ---------- Player actions ----------
+// Tap a piece to hold it, tap again to turn it, tap the board to drop it.
+// Or drag a piece onto the board. Drag a placed piece to move it, or off the board to remove it.
+let drag = null; // { id, x, y, moved, fromBank }
+
+function onBankPointerDown(event, piece) {
+  if (game.finished) return;
+  drag = { id: piece.id, x: event.clientX, y: event.clientY, moved: false, fromBank: true };
+}
+
+function onCellPointerDown(event, r, c) {
+  if (game.finished) return;
+  const id = game.board[r][c];
+  if (id === null) return;
+  liftPiece(game.pieces[id], r, c);
+  drag = { id, x: event.clientX, y: event.clientY, moved: false, fromBank: false };
+  renderAll();
+}
+
+function onPointerMove(event) {
+  if (!drag) return;
+  if (!drag.moved) {
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 8) return;
+    drag.moved = true;
+    if (drag.fromBank) selectPiece(game.pieces[drag.id], game.pieces[drag.id].shape[0]);
+    renderBank();
+  }
+  game.hover = cellUnder(event);
+  renderBoard();
+}
+
+function onPointerUp(event) {
+  if (!game || game.finished) { drag = null; return; }
+  const cell = cellUnder(event);
+  if (drag && drag.moved) dropAt(cell);
+  else if (drag && drag.fromBank) tapBankPiece(game.pieces[drag.id]);
+  else if (!drag && cell && selectedPiece()) dropAt(cell);
+  drag = null;
+  renderAll();
+  if (emptyCount() === 0) finishRound();
+}
+
+function tapBankPiece(piece) {
+  if (game.selectedId === piece.id) rotateSelected();
+  else selectPiece(piece, piece.shape[0]);
+}
+
+// Drop the held piece on a board square. Dropped off the board, it goes back to the bank.
+function dropAt(cell) {
+  const piece = selectedPiece();
+  if (!cell) { game.selectedId = null; return; }
+  const origin = originFor(piece, ...cell);
+  if (canPlace(piece, origin)) placePiece(piece, origin);
+  else shakeBoard();
+}
+
+// The board square under the pointer, or null when the pointer is off the board.
+function cellUnder(event) {
+  const el = document.elementFromPoint(event.clientX, event.clientY)?.closest('.cell');
+  if (!el || el.dataset.r === undefined) return null;
+  return [Number(el.dataset.r), Number(el.dataset.c)];
+}
+
+function shakeBoard() {
+  const board = $('board');
+  board.classList.remove('shake');
+  void board.offsetWidth; // restart the animation
+  board.classList.add('shake');
+}
+
+function finishRound() {
+  game.finished = true;
+  game.selectedId = null;
+  clearInterval(game.timer);
+  const seconds = elapsedSeconds();
+  const empty = emptyCount();
+  game.result = { seconds, empty };
+  renderAll();
+  showResult();
+}
+
+// ---------- Drawing ----------
+function buildBoard() {
+  const board = $('board');
+  board.innerHTML = '';
+  document.documentElement.style.setProperty('--cols', game.round.cols);
+  document.documentElement.style.setProperty('--rows', game.round.rows);
+  game.cellEls = [];
+  for (let r = 0; r < game.round.rows; r++) {
+    game.cellEls.push([]);
+    for (let c = 0; c < game.round.cols; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      if (game.board[r][c] !== OUTSIDE) {
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        cell.addEventListener('pointerenter', () => { game.hover = [r, c]; renderBoard(); });
+        cell.addEventListener('pointerdown', (event) => onCellPointerDown(event, r, c));
+      }
+      board.appendChild(cell);
+      game.cellEls[r].push(cell);
+    }
+  }
+  board.onpointerleave = () => { game.hover = null; renderBoard(); };
+}
+
+// Which sides of a cell touch another cell of the same piece.
+function joinClasses(r, c, id) {
+  const same = (nr, nc) => inBounds(nr, nc) && game.board[nr][nc] === id;
+  return [
+    same(r - 1, c) ? 'jt' : '', same(r + 1, c) ? 'jb' : '',
+    same(r, c - 1) ? 'jl' : '', same(r, c + 1) ? 'jr' : '',
+  ].join(' ');
+}
+
+function renderBoard() {
+  for (let r = 0; r < game.round.rows; r++) {
+    for (let c = 0; c < game.round.cols; c++) {
+      const el = game.cellEls[r][c];
+      const id = game.board[r][c];
+      if (id === OUTSIDE) { el.className = 'cell outside'; continue; }
+      el.className = id === null ? 'cell' : `cell filled ${joinClasses(r, c, id)}`;
+      el.style.setProperty('--color', id === null ? '' : game.pieces[id].color);
+    }
+  }
+  const piece = selectedPiece();
+  if (!piece || !game.hover) return;
+  const origin = originFor(piece, ...game.hover);
+  const fits = canPlace(piece, origin);
+  for (const [r, c] of cellsAt(piece, origin)) {
+    if (!inBounds(r, c) || game.board[r][c] === OUTSIDE) continue;
+    const el = game.cellEls[r][c];
+    el.classList.add(fits ? 'ghost' : 'ghost-bad');
+    el.style.setProperty('--ghost', piece.color);
+  }
+}
+
+function renderBank() {
+  const bank = $('bank');
+  bank.innerHTML = '';
+  for (const piece of game.pieces) {
+    if (piece.origin !== null) continue;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = piece.id === game.selectedId ? 'piece selected' : 'piece';
+    btn.setAttribute('aria-label', `Piece with ${piece.shape.length} blocks`);
+    const width = Math.max(...piece.shape.map(([, c]) => c)) + 1;
+    btn.style.gridTemplateColumns = `repeat(${width}, var(--mini))`;
+    for (const [r, c] of piece.shape) {
+      const mini = document.createElement('span');
+      mini.className = 'mini';
+      mini.style.gridRow = r + 1;
+      mini.style.gridColumn = c + 1;
+      mini.style.background = piece.color;
+      btn.appendChild(mini);
+    }
+    btn.addEventListener('pointerdown', (event) => onBankPointerDown(event, piece));
+    bank.appendChild(btn);
+  }
+}
+
+function renderStats() {
+  $('roundLabel').textContent = game.round.name;
+  $('timeLabel').textContent = formatTime(game.finished ? game.result.seconds : elapsedSeconds());
+  $('emptyLabel').textContent = emptyCount();
+  $('leftLabel').textContent = game.pieces.filter((p) => p.origin === null).length;
+}
+
+function renderAll() { renderBoard(); renderBank(); renderStats(); }
+
+// ---------- Menu, results, leaderboard ----------
+function showMenu() {
+  if (game) { clearInterval(game.timer); game.finished = true; }
+  stopMusic();
+  $('roundSelect').value = game ? game.roundIndex : 0;
+  renderMenuScores();
+  refreshScores().then(renderMenuScores);
+  $('menuPanel').hidden = false;
+  $('resultPanel').hidden = true;
+  $('overlay').hidden = false;
+}
+
+function renderMenuScores() {
+  const scores = $('menuScores');
+  scores.innerHTML = '';
+  renderScoreTable(scores, Number($('roundSelect').value), 10, null);
+}
+
+function showResult() {
+  const { seconds, empty } = game.result;
+  const { squares, fullBonus, timeBonus } = scoreParts(game.roundIndex, empty, seconds);
+  $('resultTitle').textContent = empty === 0 ? 'You filled it!' : 'Round over';
+  $('resultScore').textContent = `${squares + fullBonus + timeBonus} points`;
+  $('resultDetail').textContent =
+    `Filled squares: ${squares} (${POINTS_PER_FILLED_SQUARE} each). ` +
+    `Full board bonus: ${fullBonus}. Time bonus: ${timeBonus} (${formatTime(seconds)}).`;
+  $('saveForm').hidden = false;
+  $('resultScores').innerHTML = '';
+  renderScoreTable($('resultScores'), game.roundIndex, 10, null);
+  refreshScores().then(() => {
+    $('resultScores').innerHTML = '';
+    renderScoreTable($('resultScores'), game.roundIndex, 10, null);
+  });
+  $('nextBtn').hidden = game.roundIndex === ROUNDS.length - 1;
+  $('menuPanel').hidden = true;
+  $('resultPanel').hidden = false;
+  $('overlay').hidden = false;
+  $('nameInput').focus();
+}
+
+// The leaderboard lives online so every device shares it. Only round, empty squares and time are
+// stored; scores are worked out here, so saved games use the current scoring.
+let allScores = [];
+let scoresError = null;
+
+function withScore(s) { return { ...s, score: calcScore(s.round, s.empty, s.seconds) }; }
+
+async function refreshScores() {
+  try {
+    const response = await fetch(SCORES_URL);
+    if (!response.ok) throw new Error(`leaderboard answered ${response.status}`);
+    allScores = (await response.json()).map(withScore);
+    scoresError = null;
+  } catch (error) {
+    console.error('Loading scores failed', error);
+    scoresError = "Can't reach the leaderboard right now.";
+  }
+}
+
+async function postScore(entry) {
+  const response = await fetch(SCORES_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(entry),
+  });
+  if (!response.ok) throw new Error(`leaderboard answered ${response.status}`);
+  return withScore(await response.json());
+}
+
+function renderScoreTable(container, roundIndex, limit, highlightId) {
+  const top = allScores
+    .filter((s) => s.round === roundIndex)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+  const heading = document.createElement('h3');
+  heading.textContent = `Top scores: ${ROUNDS[roundIndex].name}`;
+  container.appendChild(heading);
+  if (scoresError) {
+    const problem = document.createElement('p');
+    problem.className = 'muted';
+    problem.textContent = scoresError;
+    container.appendChild(problem);
+    return;
+  }
+  if (top.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'muted';
+    empty.textContent = 'No scores yet. Be the first!';
+    container.appendChild(empty);
+    return;
+  }
+  const table = document.createElement('table');
+  table.innerHTML = '<thead><tr><th>#</th><th>Name</th><th>Score</th><th>Empty</th><th>Time</th></tr></thead>';
+  const body = document.createElement('tbody');
+  top.forEach((s, i) => {
+    const tr = document.createElement('tr');
+    if (s.id === highlightId) tr.className = 'me';
+    for (const value of [i + 1, s.name, s.score, s.empty, formatTime(s.seconds)]) {
+      const td = document.createElement('td');
+      td.textContent = value;
+      tr.appendChild(td);
+    }
+    body.appendChild(tr);
+  });
+  table.appendChild(body);
+  container.appendChild(table);
+}
+
+$('saveForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const name = $('nameInput').value.trim();
+  if (!name) return;
+  const { empty, seconds } = game.result;
+  const button = $('saveForm').querySelector('button');
+  button.disabled = true;
+  try {
+    const saved = await postScore({ name, round: game.roundIndex, empty, seconds });
+    allScores = [...allScores, saved];
+    $('saveForm').hidden = true;
+    $('resultScores').innerHTML = '';
+    renderScoreTable($('resultScores'), game.roundIndex, 10, saved.id);
+  } catch (error) {
+    console.error('Saving score failed', error);
+    button.textContent = 'Try again';
+  } finally {
+    button.disabled = false;
+  }
+});
+
+// ---------- Music (made live with Web Audio, no files) ----------
+// Notes are MIDI numbers (60 = middle C). Each song is 4 bars, each bar is 8 eighth notes.
+// Every bar has a chord; the pad, arpeggio and bass all play that chord, and the
+// melody is written from the chord's notes, so everything fits together.
+// null in a melody is a rest.
+const SONGS = [
+  { // Round 1: happy and steady in C (C, G, Am, F)
+    bpm: 100, drums: true,
+    chords: [[60, 64, 67], [59, 62, 67], [57, 60, 64], [57, 60, 65]],
+    bass: [48, 43, 45, 41],
+    melody: [72, null, 67, null, 72, 74, 76, null,
+             74, null, 71, null, 67, null, null, null,
+             76, null, 72, null, 69, null, 72, null,
+             74, 72, 69, null, 72, null, null, null],
+  },
+  { // Round 2: bright and bouncy in G (G, Em, C, D)
+    bpm: 116, drums: true,
+    chords: [[55, 59, 62], [55, 59, 64], [55, 60, 64], [54, 57, 62]],
+    bass: [43, 52, 48, 50],
+    melody: [67, 71, 74, null, 71, null, 67, null,
+             71, null, 67, null, 64, 67, 71, null,
+             72, null, 71, 72, 76, null, 72, null,
+             69, null, 72, null, 71, 69, 66, null],
+  },
+  { // Round 3: slow and dreamy in F (F, Dm, Bb, C), no drums
+    bpm: 84, drums: false,
+    chords: [[53, 57, 60], [53, 57, 62], [53, 58, 62], [52, 55, 60]],
+    bass: [41, 50, 46, 48],
+    melody: [69, null, 72, null, 77, null, 76, 72,
+             74, null, null, null, 69, null, 72, null,
+             70, null, 74, null, 77, null, 74, null,
+             72, null, null, 67, 72, null, null, null],
+  },
+  { // Round 4: sunny walk in D (D, Bm, G, A)
+    bpm: 104, drums: true,
+    chords: [[57, 62, 66], [59, 62, 66], [59, 62, 67], [57, 61, 64]],
+    bass: [50, 47, 43, 45],
+    melody: [66, null, 69, null, 74, null, 69, 66,
+             71, null, 66, null, 62, null, 66, null,
+             67, null, 71, null, 74, 71, 67, null,
+             69, null, 73, null, 76, null, null, null],
+  },
+  { // Round 5: a little mysterious in A minor (Am, F, C, G)
+    bpm: 92, drums: true,
+    chords: [[57, 60, 64], [57, 60, 65], [55, 60, 64], [55, 59, 62]],
+    bass: [45, 41, 48, 43],
+    melody: [69, null, 72, null, 76, null, 72, 69,
+             72, null, null, 69, 65, null, 69, null,
+             67, null, 72, null, 76, null, 74, 72,
+             71, null, 74, null, 67, null, null, null],
+  },
+  { // Round 6: fast and cheerful in Bb (Bb, Gm, Eb, F)
+    bpm: 120, drums: true,
+    chords: [[58, 62, 65], [55, 58, 62], [55, 58, 63], [57, 60, 65]],
+    bass: [46, 43, 51, 41],
+    melody: [70, 74, 77, null, 74, null, 70, null,
+             74, null, 70, null, 67, 70, 74, null,
+             75, null, 74, 75, 79, null, 75, null,
+             72, null, 77, null, 74, 72, 69, null],
+  },
+  { // Round 7: easygoing in C (C, Am, Dm, G)
+    bpm: 108, drums: true,
+    chords: [[60, 64, 67], [57, 60, 64], [57, 62, 65], [55, 59, 62]],
+    bass: [48, 45, 50, 43],
+    melody: [76, null, 74, 72, 67, null, 72, null,
+             69, null, 72, null, 76, null, 72, null,
+             74, null, 77, null, 74, null, 69, null,
+             71, null, 74, null, 67, null, null, null],
+  },
+  { // Round 8: gentle sway in G (G, C, G, D)
+    bpm: 96, drums: true,
+    chords: [[55, 59, 62], [55, 60, 64], [55, 59, 62], [54, 57, 62]],
+    bass: [43, 48, 43, 50],
+    melody: [71, null, 74, null, 79, null, 74, null,
+             76, null, 72, null, 67, null, 72, null,
+             74, 71, 67, 71, 74, null, 79, null,
+             78, null, 74, null, 69, null, null, null],
+  },
+  { // Round 9: skipping along in F (F, C, Dm, Bb)
+    bpm: 112, drums: true,
+    chords: [[53, 57, 60], [52, 55, 60], [53, 57, 62], [53, 58, 62]],
+    bass: [41, 48, 50, 46],
+    melody: [72, null, 69, null, 65, 69, 72, null,
+             72, null, 67, null, 64, null, 67, null,
+             69, null, 74, null, 77, null, 74, null,
+             70, null, 74, null, 72, null, null, null],
+  },
+  { // Round 10: thoughtful in D minor (Dm, Bb, F, C)
+    bpm: 100, drums: true,
+    chords: [[57, 62, 65], [58, 62, 65], [57, 60, 65], [55, 60, 64]],
+    bass: [50, 46, 41, 48],
+    melody: [74, null, 77, null, 74, 72, 69, null,
+             70, null, 74, null, 77, null, 74, null,
+             72, null, 69, null, 65, 69, 72, null,
+             67, null, 72, null, 76, null, null, null],
+  },
+  { // Round 11: quick and brave in A (A, F#m, D, E)
+    bpm: 124, drums: true,
+    chords: [[57, 61, 64], [57, 61, 66], [57, 62, 66], [56, 59, 64]],
+    bass: [45, 42, 50, 52],
+    melody: [69, 73, 76, null, 73, null, 69, null,
+             73, null, 78, null, 76, null, 73, null,
+             74, null, 78, null, 81, null, 78, null,
+             76, null, 71, null, 68, 71, 76, null],
+  },
+  { // Round 12: big finish in C (F, G, Em, Am)
+    bpm: 104, drums: true,
+    chords: [[57, 60, 65], [55, 59, 62], [55, 59, 64], [57, 60, 64]],
+    bass: [41, 43, 52, 45],
+    melody: [72, null, 77, null, 76, 72, 69, null,
+             74, null, 71, null, 67, 71, 74, null,
+             76, null, 79, null, 76, null, 71, null,
+             72, null, 76, null, 81, null, null, null],
+  },
+];
+const ARPEGGIO = [0, 1, 2, 1, 0, 1, 2, 1]; // which chord note plays on each eighth
+
+const music = { ctx: null, master: null, noise: null, timer: null, song: null, step: 0, nextTime: 0, muted: false };
+
+function startMusic(roundIndex) {
+  if (!music.ctx) {
+    music.ctx = new AudioContext();
+    music.master = music.ctx.createGain();
+    music.master.connect(music.ctx.destination);
+    music.noise = makeNoiseBuffer(music.ctx);
+  }
+  music.ctx.resume();
+  stopMusic();
+  music.master.gain.value = music.muted ? 0 : 1;
+  music.song = SONGS[roundIndex];
+  music.step = 0;
+  music.nextTime = music.ctx.currentTime + 0.1;
+  music.timer = setInterval(scheduleNotes, 50);
+}
+
+function stopMusic() {
+  clearInterval(music.timer);
+  music.timer = null;
+}
+
+// Look a little ahead and book the next notes, so timing stays smooth.
+function scheduleNotes() {
+  const { song, ctx } = music;
+  const eighth = 60 / song.bpm / 2;
+  while (music.nextTime < ctx.currentTime + 0.2) {
+    playStep(song, music.step % song.melody.length, music.nextTime, eighth);
+    music.nextTime += eighth;
+    music.step++;
+  }
+}
+
+// Everything that sounds on one eighth note.
+function playStep(song, i, time, eighth) {
+  const bar = Math.floor(i / 8);
+  const beat = i % 8;
+  const chord = song.chords[bar];
+  const root = song.bass[bar];
+
+  playNote(song.melody[i], time, eighth * 1.6, 'triangle', 0.11);
+  playNote(chord[ARPEGGIO[beat]] + 12, time, eighth * 0.8, 'sine', 0.035);
+  if (beat === 0) for (const note of chord) playNote(note, time, eighth * 8, 'sine', 0.035, 0.3);
+  if (beat === 0 || beat === 4) playNote(root, time, eighth * 1.8, 'triangle', 0.16);
+  if (beat === 6) playNote(root + 7, time, eighth * 1.5, 'triangle', 0.12);
+
+  if (!song.drums) return;
+  if (beat === 0 || beat === 4) playKick(time);
+  if (beat % 2 === 1) playHat(time);
+}
+
+function playNote(midi, time, duration, wave, volume, attack = 0.02) {
+  if (midi === null) return;
+  const osc = music.ctx.createOscillator();
+  const gain = music.ctx.createGain();
+  osc.type = wave;
+  osc.frequency.value = 440 * 2 ** ((midi - 69) / 12);
+  gain.gain.setValueAtTime(0, time);
+  gain.gain.linearRampToValueAtTime(volume, time + attack);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+  osc.connect(gain).connect(music.master);
+  osc.start(time);
+  osc.stop(time + duration + 0.05);
+}
+
+// A soft "thump": a low tone that drops in pitch quickly.
+function playKick(time) {
+  const osc = music.ctx.createOscillator();
+  const gain = music.ctx.createGain();
+  osc.frequency.setValueAtTime(110, time);
+  osc.frequency.exponentialRampToValueAtTime(45, time + 0.15);
+  gain.gain.setValueAtTime(0.35, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+  osc.connect(gain).connect(music.master);
+  osc.start(time);
+  osc.stop(time + 0.25);
+}
+
+// A quiet "tss": a tiny burst of hiss with only the high part kept.
+function playHat(time) {
+  const source = music.ctx.createBufferSource();
+  const filter = music.ctx.createBiquadFilter();
+  const gain = music.ctx.createGain();
+  source.buffer = music.noise;
+  filter.type = 'highpass';
+  filter.frequency.value = 7000;
+  gain.gain.setValueAtTime(0.05, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+  source.connect(filter).connect(gain).connect(music.master);
+  source.start(time);
+  source.stop(time + 0.06);
+}
+
+function makeNoiseBuffer(ctx) {
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  return buffer;
+}
+
+
+$('muteBtn').addEventListener('click', () => {
+  music.muted = !music.muted;
+  if (music.master) music.master.gain.value = music.muted ? 0 : 1;
+  $('muteBtn').textContent = music.muted ? 'Music: off' : 'Music: on';
+});
+
+// ---------- Buttons and keys ----------
+ROUNDS.forEach((round, i) => $('roundSelect').add(new Option(`${round.name} (${round.cellCount} squares)`, i)));
+$('roundSelect').addEventListener('change', renderMenuScores);
+$('playBtn').addEventListener('click', () => startRound(Number($('roundSelect').value)));
+$('rotateBtn').addEventListener('click', rotateSelected);
+$('doneBtn').addEventListener('click', () => { if (game && !game.finished) finishRound(); });
+$('menuBtn').addEventListener('click', showMenu);
+$('resultMenuBtn').addEventListener('click', showMenu);
+$('againBtn').addEventListener('click', () => startRound(game.roundIndex));
+$('nextBtn').addEventListener('click', () => startRound(game.roundIndex + 1));
+document.addEventListener('contextmenu', (event) => {
+  if (event.target.closest('.board')) { event.preventDefault(); rotateSelected(); }
+});
+document.addEventListener('pointermove', onPointerMove);
+document.addEventListener('pointerup', onPointerUp);
+document.addEventListener('keydown', (event) => {
+  if (!game || game.finished || event.target.tagName === 'INPUT') return;
+  if (event.key === 'r' || event.key === 'R') rotateSelected();
+  if (event.key === 'Escape') { game.selectedId = null; renderAll(); }
+});
+
+// ---------- Start ----------
+// Show an example board behind the menu so the page never looks empty.
+setupRound(0);
+showMenu();
+</script>
