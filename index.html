@@ -52,6 +52,7 @@
     display: grid; gap: 16px;
   }
   .top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+  .credit { margin: 4px 0 0; color: var(--muted); font-weight: 700; font-style: italic; font-size: 0.95rem; }
   .top h1 { font-family: var(--font-display); font-weight: 800; font-size: 2.4rem; margin: 0; line-height: 1; color: var(--accent); }
   .stats { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; font-variant-numeric: tabular-nums; }
   .chip { background: var(--surface); border-radius: 999px; padding: 4px 12px; color: var(--muted); }
@@ -136,7 +137,10 @@
 
 <div class="app">
   <header class="top">
-    <h1>Snug Blocks</h1>
+    <div>
+      <h1>Snug Blocks</h1>
+      <p class="credit">Designed by Molly &amp; Hannah Dulac</p>
+    </div>
     <div class="stats">
       <span class="chip"><b id="roundLabel">Round 1</b></span>
       <span class="chip">Time <b id="timeLabel">0:00</b></span>
@@ -165,6 +169,7 @@
 <div id="overlay" class="overlay">
   <div class="panel" id="menuPanel">
     <h2>Snug Blocks</h2>
+    <p class="credit">Designed by Molly &amp; Hannah Dulac</p>
     <p>Fit every piece into the grid so no square is left empty. Every puzzle has a perfect answer.</p>
     <ul>
       <li>Pieces can be turned, but not flipped.</li>
