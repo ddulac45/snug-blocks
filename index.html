@@ -516,6 +516,9 @@ function onPointerMove(event) {
 function onPointerUp(event) {
   if (!game || game.finished) { drag = null; return; }
   const cell = cellUnder(event);
+  // Only redraw for taps that are part of placing pieces. Redrawing on every tap made
+  // iPad Safari skip the click on buttons like "I'm done".
+  if (!drag && !(cell && selectedPiece())) return;
   if (drag && drag.moved) dropAt(cell);
   else if (drag && drag.fromBank) tapBankPiece(game.pieces[drag.id]);
   else if (!drag && cell && selectedPiece()) dropAt(cell);
@@ -902,6 +905,8 @@ const music = { ctx: null, master: null, noise: null, timer: null, song: null, s
 
 function startMusic(roundIndex) {
   if (!music.ctx) {
+    // iPads mute web sounds when the ring/silent switch is on, unless the page says it plays music.
+    if (navigator.audioSession) navigator.audioSession.type = 'playback';
     music.ctx = new AudioContext();
     music.master = music.ctx.createGain();
     music.master.connect(music.ctx.destination);
