@@ -105,6 +105,33 @@
   .piece.selected { border-color: var(--accent); transform: scale(1.08); }
   .mini { width: var(--mini); height: var(--mini); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15); }
 
+  /* Phones: board on top, then a sideways-scrolling strip of pieces, then the buttons,
+     so the board and the pieces fit on one screen. Swipe the strip sideways to see more
+     pieces; drag a piece up onto the board. */
+  @media (max-width: 600px) {
+    :root {
+      --cell: min(64px, calc((100vw - 52px) / var(--cols, 8)), calc((100svh - 310px) / var(--rows, 8)));
+      --mini: 13px;
+    }
+    .app { padding-block: 8px 16px; gap: 8px; }
+    .top { gap: 6px 10px; }
+    .top h1 { font-size: 1.6rem; }
+    .credit { font-size: 0.75rem; }
+    .top > div:first-child { flex: 1; }
+    .stats { gap: 4px; order: 3; flex-basis: 100%; }
+    .chip { padding: 2px 8px; font-size: 0.85rem; white-space: nowrap; }
+    .top .btn, .controls .btn { padding: 4px 10px; font-size: 0.85rem; }
+    .play { display: flex; flex-direction: column; gap: 8px; }
+    .board-wrap { display: contents; }
+    .board { order: 1; align-self: center; }
+    .bank-wrap { order: 2; gap: 4px; }
+    .bank-wrap h2 { font-size: 1rem; }
+    .bank { flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding: 4px 2px 6px; }
+    .piece { flex: none; padding: 6px; touch-action: pan-x; }
+    .controls { order: 3; }
+    .hint { order: 4; font-size: 0.85rem; }
+  }
+
   .overlay {
     position: fixed; inset: 0; background: rgb(10 20 18 / 0.55);
     display: grid; place-items: center; overflow-y: auto;
@@ -1058,6 +1085,8 @@ document.addEventListener('contextmenu', (event) => {
 });
 document.addEventListener('pointermove', onPointerMove);
 document.addEventListener('pointerup', onPointerUp);
+// The browser takes over a touch when it scrolls (like swiping the piece strip on a phone).
+document.addEventListener('pointercancel', () => { drag = null; });
 document.addEventListener('keydown', (event) => {
   if (!game || game.finished || event.target.tagName === 'INPUT') return;
   if (event.key === 'r' || event.key === 'R') rotateSelected();
