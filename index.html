@@ -154,6 +154,7 @@
       <div id="board" class="board"></div>
       <div class="controls">
         <button class="btn" id="rotateBtn" type="button">Turn piece (R)</button>
+        <button class="btn" id="pauseBtn" type="button">Pause</button>
         <button class="btn" id="doneBtn" type="button">I'm done</button>
         <button class="btn" id="menuBtn" type="button">Menu</button>
       </div>
@@ -184,6 +185,11 @@
     <div class="scores" id="menuScores"></div>
   </div>
 
+  <div class="panel" id="pausePanel" hidden>
+    <h2>Paused</h2>
+    <p>The timer is stopped. Take your time!</p>
+    <div class="row"><button class="btn primary" id="resumeBtn" type="button">Keep playing</button></div>
+  </div>
   <div class="panel" id="resultPanel" hidden>
     <h2 id="resultTitle">You filled it!</h2>
     <div class="big-score" id="resultScore">0</div>
@@ -427,6 +433,7 @@ function setupRound(index) {
     grab: null,
     hover: null,
     startTime: performance.now(),
+    pausedAt: null,
     finished: false,
     timer: setInterval(renderStats, 250),
   };
@@ -435,7 +442,25 @@ function setupRound(index) {
 }
 
 function selectedPiece() { return game.selectedId === null ? null : game.pieces[game.selectedId]; }
-function elapsedSeconds() { return Math.floor((performance.now() - game.startTime) / 1000); }
+function elapsedSeconds() { return Math.floor(((game.pausedAt ?? performance.now()) - game.startTime) / 1000); }
+
+// Pausing freezes the clock: on resume the start time moves forward by the time spent paused.
+function pauseGame() {
+  game.pausedAt = performance.now();
+  stopMusic();
+  $('menuPanel').hidden = true;
+  $('resultPanel').hidden = true;
+  $('pausePanel').hidden = false;
+  $('overlay').hidden = false;
+}
+
+function resumeGame() {
+  game.startTime += performance.now() - game.pausedAt;
+  game.pausedAt = null;
+  $('pausePanel').hidden = true;
+  $('overlay').hidden = true;
+  startMusic(game.roundIndex);
+}
 function emptyCount() { return game.board.flat().filter((id) => id === null).length; }
 // Every filled square earns points, so a good try never scores 0.
 function scoreParts(roundIndex, empty, seconds) {
@@ -1021,6 +1046,8 @@ ROUNDS.forEach((round, i) => $('roundSelect').add(new Option(`${round.name} (${r
 $('roundSelect').addEventListener('change', renderMenuScores);
 $('playBtn').addEventListener('click', () => startRound(Number($('roundSelect').value)));
 $('rotateBtn').addEventListener('click', rotateSelected);
+$('pauseBtn').addEventListener('click', () => { if (game && !game.finished) pauseGame(); });
+$('resumeBtn').addEventListener('click', resumeGame);
 $('doneBtn').addEventListener('click', () => { if (game && !game.finished) finishRound(); });
 $('menuBtn').addEventListener('click', showMenu);
 $('resultMenuBtn').addEventListener('click', showMenu);
