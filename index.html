@@ -784,7 +784,7 @@ async function postScore(entry) {
 function renderScoreTable(container, roundIndex, limit, highlightId) {
   const top = allScores
     .filter((s) => s.round === roundIndex)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score || a.seconds - b.seconds) // same score: faster time ranks higher
     .slice(0, limit);
   const heading = document.createElement('h3');
   heading.textContent = `Top scores: ${ROUNDS[roundIndex].name}`;
